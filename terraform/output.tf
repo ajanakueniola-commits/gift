@@ -25,8 +25,8 @@ output "private_subnet_id" {
 output "security_group_web_id" {
   value = aws_security_group.web.id
 }
-output "security_group_app_id" {
-  value = aws_security_group.app.id
+output "security_group_backend_id" {
+  value = aws_security_group.backend.id
 }
 output "security_group_db_id" {
   value = aws_security_group.db.id
