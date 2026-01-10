@@ -203,59 +203,122 @@ pipeline {
         //     }
         // }
         
-        stage('Deploy Application Code') {
+//         stage('Deploy Application Code') {
+//     when {
+//         expression { params.ACTION == 'apply' }
+//     }
+//     steps {
+//         script {
+
+//             // Get backend public IPs
+//             def backendIps = sh(
+//                 script: 'cd terraform && terraform output -json backend_public_ips',
+//                 returnStdout: true
+//             ).trim()
+
+//             // Pick the first backend (you can later do round-robin)
+//             def backendIp = sh(
+//                 script: "echo '${backendIps}' | jq -r '.[0]'",
+//                 returnStdout: true
+//             ).trim()
+
+//             echo "Backend API IP: ${backendIp}"
+
+//             sshagent(credentials: ['AWS_SSH_KEY']) {
+//                 sh """
+//                 set -e
+//                 for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
+//                     echo "Deploying to \$ip"
+
+//                     ssh -o StrictHostKeyChecking=no ec2-user@\${ip} '
+//                         sudo yum install -y git
+
+//                         rm -rf /tmp/fruits-veg_market
+//                         git clone https://github.com/techbleat/fruits-veg_market.git /tmp/fruits-veg_market
+
+//                         cd /tmp/fruits-veg_market
+
+//                         # Replace localhost with backend API IP
+//                         sudo sed -i "s|localhost:8000|${backendIp}:8000|g" index.html
+
+//                         sudo rm -rf /usr/share/nginx/html/*
+//                         sudo cp -r * /usr/share/nginx/html/
+
+//                         sudo chown -R nginx:nginx /usr/share/nginx/html
+//                         sudo chmod -R 755 /usr/share/nginx/html
+
+//                         sudo systemctl reload nginx
+//                     '
+//                 done
+//                 """
+//             }
+//         }
+//     }
+// }
+    stage('Deploy Nginx + Frontend + Reverse Proxy') {
     when {
         expression { params.ACTION == 'apply' }
     }
     steps {
         script {
 
-            // Get backend public IPs
-            def backendIps = sh(
-                script: 'cd terraform && terraform output -json backend_public_ips',
-                returnStdout: true
-            ).trim()
-
-            // Pick the first backend (you can later do round-robin)
+            // Get backend FastAPI IP
             def backendIp = sh(
-                script: "echo '${backendIps}' | jq -r '.[0]'",
+                script: "cd terraform && terraform output -json backend_public_ips | jq -r '.[0]'",
                 returnStdout: true
             ).trim()
 
-            echo "Backend API IP: ${backendIp}"
+            echo "Backend FastAPI IP: ${backendIp}"
 
             sshagent(credentials: ['AWS_SSH_KEY']) {
                 sh """
                 set -e
+
                 for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
-                    echo "Deploying to \$ip"
+                    echo "Configuring Nginx on \$ip"
 
                     ssh -o StrictHostKeyChecking=no ec2-user@\${ip} '
-                        sudo yum install -y git
+                        sudo yum install -y nginx git
+                        sudo systemctl enable nginx
+                        sudo systemctl start nginx
 
-                        rm -rf /tmp/fruits-veg_market
-                        git clone https://github.com/techbleat/fruits-veg_market.git /tmp/fruits-veg_market
-
-                        cd /tmp/fruits-veg_market
-
-                        # Replace localhost with backend API IP
-                        sudo sed -i "s|localhost:8000|${backendIp}:8000|g" index.html
+                        rm -rf /tmp/fruits
+                        git clone https://github.com/techbleat/fruits-veg_market.git /tmp/fruits
+                        cd /tmp/fruits
 
                         sudo rm -rf /usr/share/nginx/html/*
                         sudo cp -r * /usr/share/nginx/html/
 
-                        sudo chown -R nginx:nginx /usr/share/nginx/html
-                        sudo chmod -R 755 /usr/share/nginx/html
+                        # Configure reverse proxy
+                        sudo tee /etc/nginx/conf.d/default.conf > /dev/null <<EOF
+        server {
+        listen 80;
+        server_name enny4life.duckdns.org;
 
-                        sudo systemctl reload nginx
-                    '
-                done
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+
+        location /api/ {
+        proxy_pass http://${backendIp}:8000/;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+    }
+}
+        EOF
+
+            sudo nginx -t
+            sudo systemctl restart nginx
+               '
+            done
                 """
             }
         }
     }
 }
-    
             stage('Terraform Destroy') {
             when {
                 expression { params.ACTION == 'destroy' }

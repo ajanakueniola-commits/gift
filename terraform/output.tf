@@ -13,7 +13,7 @@ output "db_server_ips" {
 }
 
 output "backend_public_ips" {
-  value = aws_instance.app[*].public_ip
+  value = aws_instance.backend[*].public_ip
 }
 
 
