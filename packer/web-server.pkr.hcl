@@ -11,12 +11,12 @@ variable "aws_region" {
   default = "us-east-2"
 }
 
-source "amazon-ebs" "web" {
+source "amazon-ebs" "web-server" {
   region        = var.aws_region
   instance_type = "c7i-flex.large"
   ssh_username  = "ec2-user"
 
-  ami_name      = "grace-web-ami-{{timestamp}}"
+  ami_name      = "grace-web-server-ami-{{timestamp}}"
 
   source_ami_filter {
     filters = {
@@ -29,13 +29,13 @@ source "amazon-ebs" "web" {
   }
 
   tags = {
-    Name = "grace-web-ami"
+    Name = "grace-web-server-ami"
     Role = "nginx"
   }
 }
 
 build {
-  sources = ["source.amazon-ebs.web"]
+  sources = ["source.amazon-ebs.web-server"]
 
   provisioner "shell" {
     inline = [
@@ -57,5 +57,8 @@ build {
     inline = [
       "sudo mv /tmp/default.conf /etc/nginx/conf.d/default.conf"
     ]
+  }
+  post-processor "manifest" {
+    output = "manifest.json"
   }
 }

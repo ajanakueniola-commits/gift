@@ -11,12 +11,12 @@ variable "aws_region" {
   default = "us-east-2"
 }
 
-source "amazon-ebs" "backend" {
+source "amazon-ebs" "backend-server" {
   region        = var.aws_region
   instance_type = "c7i-flex.large"
   ssh_username  = "ec2-user"
 
-  ami_name      = "grace-backend-ami-{{timestamp}}"
+  ami_name      = "grace-backend-server-ami-{{timestamp}}"
 
   source_ami_filter {
     filters = {
@@ -29,13 +29,13 @@ source "amazon-ebs" "backend" {
   }
 
   tags = {
-    Name = "grace-backend-ami"
+    Name = "grace-backend-server-ami"
     Role = "app"
   }
 }
 
 build {
-  sources = ["source.amazon-ebs.backend"]
+  sources = ["source.amazon-ebs.backend-server"]
 
   provisioner "shell" {
     inline = [
@@ -46,5 +46,8 @@ build {
       "sudo mkdir -p /opt/app",
       "sudo chown appuser:appuser /opt/app"
     ]
+  }
+  post-processor "manifest" {
+    output = "manifest.json"
   }
 }
