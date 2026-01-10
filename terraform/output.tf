@@ -3,7 +3,7 @@
 # }
 
 output "web-server_ip" {
-  value = aws_instance.web.public_ip
+  value = aws_instance.web-server.public_ip
 }
 
 output "backend-server_ip" {
