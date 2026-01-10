@@ -129,81 +129,134 @@ pipeline {
             }
         }
         
-        stage('Deploy Application Code') {
-            when {
-                expression { params.ACTION == 'apply' }
-            }
-            steps {
-                script {                   
-                    sshagent(credentials: ['AWS_SSH_KEY']) {
-                        sh """
-                            set -e
-                            for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
-                                ssh -o StrictHostKeyChecking=no \
-                                    -o UserKnownHostsFile=/dev/null \
-                                    ec2-user@\$ip 'mkdir -p /tmp/frontend_deploy'
+        // stage('Deploy Application Code') {
+        //     when {
+        //         expression { params.ACTION == 'apply' }
+        //     }
+        //     steps {
+        //         script {                   
+        //             sshagent(credentials: ['AWS_SSH_KEY']) {
+        //                 sh """
+        //                     set -e
+        //                     for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
+        //                         ssh -o StrictHostKeyChecking=no \
+        //                             -o UserKnownHostsFile=/dev/null \
+        //                             ec2-user@\$ip 'mkdir -p /tmp/frontend_deploy'
                                 
-                                scp -o StrictHostKeyChecking=no \
-                                    -o UserKnownHostsFile=/dev/null \
-                                    -r application/frontend/* ec2-user@\$ip:/tmp/frontend_deploy/
+        //                         scp -o StrictHostKeyChecking=no \
+        //                             -o UserKnownHostsFile=/dev/null \
+        //                             -r application/frontend/* ec2-user@\$ip:/tmp/frontend_deploy/
                                 
-                                echo "🔧 Installing files and setting permissions..."
-                                ssh -o StrictHostKeyChecking=no \
-                                    -o UserKnownHostsFile=/dev/null \
-                                    ec2-user@\$ip '
-                                    sudo rm -rf /usr/share/nginx/html/*
-                                    sudo cp -r /tmp/frontend_deploy/* /usr/share/nginx/html/
-                                    sudo chown -R nginx:nginx /usr/share/nginx/html/
-                                    sudo chmod -R 755 /usr/share/nginx/html/
-                                    rm -rf /tmp/frontend_deploy
-                                '
-                                ssh -o StrictHostKeyChecking=no \
-                                    -o UserKnownHostsFile=/dev/null \
-                                    ec2-user@\$ip 'sudo systemctl reload nginx'
-                            done
-                        """
-                    }
-                }
-            }
-        }
+        //                         echo "🔧 Installing files and setting permissions..."
+        //                         ssh -o StrictHostKeyChecking=no \
+        //                             -o UserKnownHostsFile=/dev/null \
+        //                             ec2-user@\$ip '
+        //                             sudo rm -rf /usr/share/nginx/html/*
+        //                             sudo cp -r /tmp/frontend_deploy/* /usr/share/nginx/html/
+        //                             sudo chown -R nginx:nginx /usr/share/nginx/html/
+        //                             sudo chmod -R 755 /usr/share/nginx/html/
+        //                             rm -rf /tmp/frontend_deploy
+        //                         '
+        //                         ssh -o StrictHostKeyChecking=no \
+        //                             -o UserKnownHostsFile=/dev/null \
+        //                             ec2-user@\$ip 'sudo systemctl reload nginx'
+        //                     done
+        //                 """
+        //             }
+        //         }
+        //     }
+        // }
 
-        stage('Configure Nginx') {
-            when {
-                expression { params.ACTION == 'apply' }
-            }
-            steps {
-                script {                   
-                    def backendAlbDns = sh(
-                        script: 'cd terraform && terraform output -raw backend_alb_dns',
-                        returnStdout: true
-                    ).trim()
+        // stage('Configure Nginx') {
+        //     when {
+        //         expression { params.ACTION == 'apply' }
+        //     }
+        //     steps {
+        //         script {                   
+        //             def backendAlbDns = sh(
+        //                 script: 'cd terraform && terraform output -raw backend_alb_dns',
+        //                 returnStdout: true
+        //             ).trim()
                     
-                    echo "Backend ALB DNS: ${backendAlbDns}"
+        //             echo "Backend ALB DNS: ${backendAlbDns}"
                     
-                    sshagent(credentials: ['AWS_SSH_KEY']) {
-                        sh """
-                            set -e
-                            for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
-                                ssh -o StrictHostKeyChecking=no \
-                                    -o UserKnownHostsFile=/dev/null \
-                                    ec2-user@\$ip "
-                                    sudo sed -i 's|BACKEND_LB_DNS|${backendAlbDns}|g' /etc/nginx/conf.d/default.conf
-                                    sudo nginx -t
-                                "
-                                ssh -o StrictHostKeyChecking=no \
-                                    -o UserKnownHostsFile=/dev/null \
-                                    ec2-user@\$ip "
-                                    sudo systemctl restart nginx
-                                    sudo systemctl status nginx --no-pager -l
-                                "
-                            done
-                        """
-                    }
-                }
+        //             sshagent(credentials: ['AWS_SSH_KEY']) {
+        //                 sh """
+        //                     set -e
+        //                     for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
+        //                         ssh -o StrictHostKeyChecking=no \
+        //                             -o UserKnownHostsFile=/dev/null \
+        //                             ec2-user@\$ip "
+        //                             sudo sed -i 's|BACKEND_LB_DNS|${backendAlbDns}|g' /etc/nginx/conf.d/default.conf
+        //                             sudo nginx -t
+        //                         "
+        //                         ssh -o StrictHostKeyChecking=no \
+        //                             -o UserKnownHostsFile=/dev/null \
+        //                             ec2-user@\$ip "
+        //                             sudo systemctl restart nginx
+        //                             sudo systemctl status nginx --no-pager -l
+        //                         "
+        //                     done
+        //                 """
+        //             }
+        //         }
+        //     }
+        // }
+        
+        stage('Deploy Application Code') {
+    when {
+        expression { params.ACTION == 'apply' }
+    }
+    steps {
+        script {
+
+            // Get backend public IPs
+            def backendIps = sh(
+                script: 'cd terraform && terraform output -json backend_public_ips',
+                returnStdout: true
+            ).trim()
+
+            // Pick the first backend (you can later do round-robin)
+            def backendIp = sh(
+                script: "echo '${backendIps}' | jq -r '.[0]'",
+                returnStdout: true
+            ).trim()
+
+            echo "Backend API IP: ${backendIp}"
+
+            sshagent(credentials: ['AWS_SSH_KEY']) {
+                sh """
+                set -e
+                for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
+                    echo "Deploying to \$ip"
+
+                    ssh -o StrictHostKeyChecking=no ec2-user@\${ip} '
+                        sudo yum install -y git
+
+                        rm -rf /tmp/fruits-veg_market
+                        git clone https://github.com/techbleat/fruits-veg_market.git /tmp/fruits-veg_market
+
+                        cd /tmp/fruits-veg_market
+
+                        # Replace localhost with backend API IP
+                        sudo sed -i "s|localhost:8000|${backendIp}:8000|g" index.html
+
+                        sudo rm -rf /usr/share/nginx/html/*
+                        sudo cp -r * /usr/share/nginx/html/
+
+                        sudo chown -R nginx:nginx /usr/share/nginx/html
+                        sudo chmod -R 755 /usr/share/nginx/html
+
+                        sudo systemctl reload nginx
+                    '
+                done
+                """
             }
         }
-        
-        stage('Terraform Destroy') {
+    }
+}
+    
+            stage('Terraform Destroy') {
             when {
                 expression { params.ACTION == 'destroy' }
             }
