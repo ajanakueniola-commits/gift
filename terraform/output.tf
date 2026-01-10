@@ -2,12 +2,12 @@
 #   value = aws_lb.web.dns_name
 # }
 
-output "web_ip" {
+output "web-server_ip" {
   value = aws_instance.web.public_ip
 }
 
-output "app_ip" {
-  value = aws_instance.app.private_ip
+output "backend-server_ip" {
+  value = aws_instance.backend-server.private_ip
 }
 
 output "db_ip" {
