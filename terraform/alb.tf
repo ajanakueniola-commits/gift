@@ -4,10 +4,6 @@ resource "aws_lb" "web" {
   load_balancer_type = "application"
   security_groups    = [aws_security_group.web.id]
   subnets            = [aws_subnet.public.id]
-
-  tags = {
-    Name = "grace-alb"
-  }
 }
 
 resource "aws_lb_target_group" "web" {
