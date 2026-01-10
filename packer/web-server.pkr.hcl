@@ -47,6 +47,10 @@ build {
       "sudo chmod -R 755 /usr/share/nginx/html"
     ]
   }
+  
+  post-processor "manifest" {
+    output = "manifest.json"
+  }
 
   provisioner "file" {
     source      = "nginx.conf"
@@ -58,7 +62,5 @@ build {
       "sudo mv /tmp/default.conf /etc/nginx/conf.d/default.conf"
     ]
   }
-  post-processor "manifest" {
-    output = "manifest.json"
-  }
+  
 }
