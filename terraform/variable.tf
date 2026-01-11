@@ -22,6 +22,10 @@ variable "db_name" {
   description = "Name of the database"
 }
 
+variable "base-server-ami_id" {
+  description = "Base server AMI ID created by Packer"
+}
+
 variable "db_username" {
   description = "Username for the database"
 }
