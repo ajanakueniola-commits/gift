@@ -1,5 +1,5 @@
-web-server-ami_id = "ami-01cd38353b6dbe46f"
-backend-server-ami_id = "ami-097ae8c3223302dcf"
+web-server-ami_id = "ami-0e775653e34df461c"
+backend-server-ami_id = "ami-0d47328e4ad2167ea"
 postgres_ami = "ami-0987654321fedcba0"
 instance_type       = "c7i-flex.large"
 db_name  =  "appdb"

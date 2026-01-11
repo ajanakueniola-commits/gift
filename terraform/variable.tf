@@ -9,6 +9,11 @@ variable "web-server-ami_id" {
 variable "backend-server-ami_id" {
   description = "AMI ID created by Packer"
 }
+
+variable "postgres-server-ami_id" {
+  description = "AMI ID created by Packer"
+}
+
 variable "instance_type" {
   default = "c7i-flex.large"
 }
