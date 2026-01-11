@@ -191,7 +191,7 @@ pipeline {
         dir('packer') {
           sh '''
             packer init .
-            packer build base-ami.pkr.hcl
+            packer build base-server-ami.pkr.hcl
           '''
         }
       }

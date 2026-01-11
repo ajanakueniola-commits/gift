@@ -18,7 +18,7 @@ source "amazon-ebs" "base" {
   instance_type = "c7i-flex.large"
   ssh_username  = "ec2-user"
 
-  ami_name      = "grace-base-ami-{{timestamp}}"
+  ami_name      = "grace-base-server-ami-{{timestamp}}"
 
   source_ami_filter {
     filters = {
@@ -31,7 +31,7 @@ source "amazon-ebs" "base" {
   }
 
   tags = {
-    Name = "grace-base-ami"
+    Name = "grace-base-server-ami"
     Role = "base"
   }
 }
