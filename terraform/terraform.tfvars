@@ -1,4 +1,5 @@
 base-server-ami_id = "ami-0f53befed61e22753"
+web-server-ami_id = "ami-0f53befed61e22753"
 backend-server-ami_id = "aami-0f53befed61e22753"
 postgres_ami = "ami-0f53befed61e22753"
 instance_type       = "c7i-flex.large"
