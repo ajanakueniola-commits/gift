@@ -1,18 +1,17 @@
 pipeline {
     agent any
-    
+
     environment {
         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
-        AWS_ACCESS_KEY_ID = credentials('aws-access-key-id')
-        AWS_REGION = 'us-east-2'
+        AWS_ACCESS_KEY_ID     = credentials('aws-access-key-id')
+        AWS_REGION            = 'us-east-2'
     }
-    
+
     parameters {
         choice(name: 'ACTION', choices: ['plan', 'apply', 'destroy'], description: 'Terraform action to perform')
         booleanParam(name: 'BUILD_AMIS', defaultValue: false, description: 'Build new AMIs with Packer')
-        string(name: 'ADMIN_IP', defaultValue: '', description: 'Admin IP for SSH access (leave empty to use Jenkins server IP)')
     }
-    
+
     stages {
         stage('Checkout') {
             steps {
@@ -20,56 +19,24 @@ pipeline {
             }
         }
 
-        stage('Set Admin IP') {
-            steps {
-                script {
-                    def adminIp = params.ADMIN_IP
-                    if (adminIp == '') {
-                        adminIp = sh(
-                            script: 'curl -s http://checkip.amazonaws.com',
-                            returnStdout: true
-                        ).trim()
-                        echo "Using Jenkins server IP: ${adminIp}"
-                    }
-
-                    dir('terraform') {
-                        sh """
-                            sed -i 's|admin_ip\\s*=.*|admin_ip = \"${adminIp}/32\"|' terraform.tfvars
-                        """
-                    }
-                }
-            }
-        }
-        
         stage('Build AMIs') {
-            when {
-                expression { params.BUILD_AMIS == true }
-            }
+            when { expression { params.BUILD_AMIS } }
             steps {
                 script {
                     dir('packer') {
                         echo 'Building Backend Server AMI...'
-                        sh '''
-                            packer init backend-server.pkr.hcl
-                            packer build -var "aws_region=${AWS_REGION}" backend-server.pkr.hcl
-                        '''
-                        
+                        sh 'packer init base-server-ami.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" base-server-ami.pkr.hcl'
+
                         echo 'Building Web Server AMI...'
-                        sh '''
-                            packer init web-server.pkr.hcl
-                            packer build -var "aws_region=${AWS_REGION}" web-server.pkr.hcl
+                        sh 'packer init base-server-ami.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" base-server-ami.pkr.hcl'
 
                         echo 'Building Postgres Server AMI...'
-                        sh '''
-                            packer init postgres-server.pkr.hcl
-                            packer build -var "aws_region=${AWS_REGION}" postgres-server.pkr.hcl
-                        
-                        '''
+                        sh 'packer init base-server-ami.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" base-server-ami.pkr.hcl'
                     }
                 }
             }
         }
-        
+
         stage('Terraform Init') {
             steps {
                 dir('terraform') {
@@ -85,22 +52,18 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Terraform Plan') {
-            when {
-                expression { params.ACTION == 'plan' || params.ACTION == 'apply' }
-            }
+            when { expression { params.ACTION == 'plan' || params.ACTION == 'apply' } }
             steps {
                 dir('terraform') {
                     sh 'terraform plan -var-file="terraform.tfvars"'
                 }
             }
         }
-        
+
         stage('Terraform Apply') {
-            when {
-                expression { params.ACTION == 'apply' }
-            }
+            when { expression { params.ACTION == 'apply' } }
             steps {
                 dir('terraform') {
                     sh 'terraform apply -var-file="terraform.tfvars" -auto-approve'
@@ -109,226 +72,81 @@ pipeline {
         }
 
         stage('Retrieve Outputs') {
-            when {
-                expression { params.ACTION == 'apply' }
-            }
+            when { expression { params.ACTION == 'apply' } }
             steps {
                 script {
                     dir('terraform') {
-                        def dbEndpoint = sh(
-                            script: 'terraform output -raw rds_endpoint',
-                            returnStdout: true
-                        ).trim()
-                        
-                        def webIps = sh(
-                            script: 'terraform output -json web_server_ips',
-                            returnStdout: true
-                        ).trim()
-                        
-                        env.DB_ENDPOINT = dbEndpoint
-                        env.WEB_IPS = webIps
-                        
-                        echo "Database Endpoint: ${dbEndpoint}"
-                        echo "Web Server IPs: ${webIps}"
+                        env.DB_ENDPOINT = sh(script: 'terraform output -raw rds_endpoint', returnStdout: true).trim()
+                        env.WEB_IPS     = sh(script: 'terraform output -json web_server_ips', returnStdout: true).trim()
+                        env.Postgres_IPS     = sh(script: 'terraform output -json postgres_server_ips', returnStdout: true).trim()
+                        echo "Database Endpoint: ${env.DB_ENDPOINT}"
+                        echo "Web Server IPs: ${env.WEB_IPS}"
+                        echo "Postgres Server IPs: ${env.Postgres_IPS}"
                     }
                 }
             }
         }
-        
-        // stage('Deploy Application Code') {
-        //     when {
-        //         expression { params.ACTION == 'apply' }
-        //     }
-        //     steps {
-        //         script {                   
-        //             sshagent(credentials: ['AWS_SSH_KEY']) {
-        //                 sh """
-        //                     set -e
-        //                     for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
-        //                         ssh -o StrictHostKeyChecking=no \
-        //                             -o UserKnownHostsFile=/dev/null \
-        //                             ec2-user@\$ip 'mkdir -p /tmp/frontend_deploy'
-                                
-        //                         scp -o StrictHostKeyChecking=no \
-        //                             -o UserKnownHostsFile=/dev/null \
-        //                             -r application/frontend/* ec2-user@\$ip:/tmp/frontend_deploy/
-                                
-        //                         echo "🔧 Installing files and setting permissions..."
-        //                         ssh -o StrictHostKeyChecking=no \
-        //                             -o UserKnownHostsFile=/dev/null \
-        //                             ec2-user@\$ip '
-        //                             sudo rm -rf /usr/share/nginx/html/*
-        //                             sudo cp -r /tmp/frontend_deploy/* /usr/share/nginx/html/
-        //                             sudo chown -R nginx:nginx /usr/share/nginx/html/
-        //                             sudo chmod -R 755 /usr/share/nginx/html/
-        //                             rm -rf /tmp/frontend_deploy
-        //                         '
-        //                         ssh -o StrictHostKeyChecking=no \
-        //                             -o UserKnownHostsFile=/dev/null \
-        //                             ec2-user@\$ip 'sudo systemctl reload nginx'
-        //                     done
-        //                 """
-        //             }
-        //         }
-        //     }
-        // }
 
-        // stage('Configure Nginx') {
-        //     when {
-        //         expression { params.ACTION == 'apply' }
-        //     }
-        //     steps {
-        //         script {                   
-        //             def backendAlbDns = sh(
-        //                 script: 'cd terraform && terraform output -raw backend_alb_dns',
-        //                 returnStdout: true
-        //             ).trim()
-                    
-        //             echo "Backend ALB DNS: ${backendAlbDns}"
-                    
-        //             sshagent(credentials: ['AWS_SSH_KEY']) {
-        //                 sh """
-        //                     set -e
-        //                     for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
-        //                         ssh -o StrictHostKeyChecking=no \
-        //                             -o UserKnownHostsFile=/dev/null \
-        //                             ec2-user@\$ip "
-        //                             sudo sed -i 's|BACKEND_LB_DNS|${backendAlbDns}|g' /etc/nginx/conf.d/default.conf
-        //                             sudo nginx -t
-        //                         "
-        //                         ssh -o StrictHostKeyChecking=no \
-        //                             -o UserKnownHostsFile=/dev/null \
-        //                             ec2-user@\$ip "
-        //                             sudo systemctl restart nginx
-        //                             sudo systemctl status nginx --no-pager -l
-        //                         "
-        //                     done
-        //                 """
-        //             }
-        //         }
-        //     }
-        // }
-        
-//         stage('Deploy Application Code') {
-//     when {
-//         expression { params.ACTION == 'apply' }
-//     }
-//     steps {
-//         script {
+        stage('Deploy Nginx + Frontend + Reverse Proxy') {
+            when { expression { params.ACTION == 'apply' } }
+            steps {
+                script {
+                    // Get first backend FastAPI IP
+                    def backendIp = sh(
+                        script: "cd terraform && terraform output -json backend_public_ips | jq -r '.[0]'",
+                        returnStdout: true
+                    ).trim()
+                    echo "Backend FastAPI IP: ${backendIp}"
 
-//             // Get backend public IPs
-//             def backendIps = sh(
-//                 script: 'cd terraform && terraform output -json backend_public_ips',
-//                 returnStdout: true
-//             ).trim()
+                    sshagent(credentials: ['AWS_SSH_KEY']) {
+                        sh """
+                        set -e
+                        for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
+                          echo "Configuring Nginx on \$ip"
+                          ssh -o StrictHostKeyChecking=no ec2-user@\${ip} '
+                            sudo yum install -y nginx git
+                            sudo systemctl enable nginx
+                            sudo systemctl start nginx
 
-//             // Pick the first backend (you can later do round-robin)
-//             def backendIp = sh(
-//                 script: "echo '${backendIps}' | jq -r '.[0]'",
-//                 returnStdout: true
-//             ).trim()
+                            rm -rf /tmp/fruits
+                            git clone https://github.com/techbleat/fruits-veg_market.git /tmp/fruits
 
-//             echo "Backend API IP: ${backendIp}"
+                            sudo rm -rf /usr/share/nginx/html/*
+                            sudo cp -r /tmp/fruits/* /usr/share/nginx/html/
 
-//             sshagent(credentials: ['AWS_SSH_KEY']) {
-//                 sh """
-//                 set -e
-//                 for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
-//                     echo "Deploying to \$ip"
+                            # Configure reverse proxy safely
+                            sudo bash -c "cat > /etc/nginx/nginx.conf <<EOL
+server {
+    listen 80;
+    server_name enny4life.duckdns.org;
 
-//                     ssh -o StrictHostKeyChecking=no ec2-user@\${ip} '
-//                         sudo yum install -y git
+    root /usr/share/nginx/html;
+    index index.html;
 
-//                         rm -rf /tmp/fruits-veg_market
-//                         git clone https://github.com/techbleat/fruits-veg_market.git /tmp/fruits-veg_market
-
-//                         cd /tmp/fruits-veg_market
-
-//                         # Replace localhost with backend API IP
-//                         sudo sed -i "s|localhost:8000|${backendIp}:8000|g" index.html
-
-//                         sudo rm -rf /usr/share/nginx/html/*
-//                         sudo cp -r * /usr/share/nginx/html/
-
-//                         sudo chown -R nginx:nginx /usr/share/nginx/html
-//                         sudo chmod -R 755 /usr/share/nginx/html
-
-//                         sudo systemctl reload nginx
-//                     '
-//                 done
-//                 """
-//             }
-//         }
-//     }
-// }
-    stage('Deploy Nginx + Frontend + Reverse Proxy') {
-    when {
-        expression { params.ACTION == 'apply' }
-    }
-    steps {
-        script {
-
-            // Get backend FastAPI IP
-            def backendIp = sh(
-                script: "cd terraform && terraform output -json backend_public_ips | jq -r '.[0]'",
-                returnStdout: true
-            ).trim()
-
-            echo "Backend FastAPI IP: ${backendIp}"
-
-            sshagent(credentials: ['AWS_SSH_KEY']) {
-                sh """
-                set -e
-
-                for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
-                    echo "Configuring Nginx on \$ip"
-
-                    ssh -o StrictHostKeyChecking=no ec2-user@\${ip} '
-                        sudo yum install -y nginx git
-                        sudo systemctl enable nginx
-                        sudo systemctl start nginx
-
-                        rm -rf /tmp/fruits
-                        git clone https://github.com/techbleat/fruits-veg_market.git /tmp/fruits
-                        cd /tmp/fruits
-
-                        sudo rm -rf /usr/share/nginx/html/*
-                        sudo cp -r * /usr/share/nginx/html/
-
-                        # Configure reverse proxy
-                        sudo tee /etc/nginx/conf.d/default.conf > /dev/null <<EOF
-        server {
-        listen 80;
-        server_name enny4life.duckdns.org;
-
-        root /usr/share/nginx/html;
-        index index.html;
-
-        location / {
+    location / {
         try_files \$uri \$uri/ /index.html;
     }
 
-        location /api/ {
+    location /api/ {
         proxy_pass http://${backendIp}:8000/;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
     }
 }
-        EOF
+EOF"
 
-            sudo nginx -t
-            sudo systemctl restart nginx
-               '
-            done
-                """
+                            sudo nginx -t
+                            sudo systemctl restart nginx
+                          '
+                        done
+                        """
+                    }
+                }
             }
         }
-    }
-}
-            stage('Terraform Destroy') {
-            when {
-                expression { params.ACTION == 'destroy' }
-            }
+
+        stage('Terraform Destroy') {
+            when { expression { params.ACTION == 'destroy' } }
             steps {
                 dir('terraform') {
                     input message: 'Are you sure you want to destroy?', ok: 'Destroy'
@@ -336,33 +154,11 @@ pipeline {
                 }
             }
         }
-        
-        stage('Verify Deployment') {
-            when {
-                expression { params.ACTION == 'apply' }
-            }
-            steps {
-                script {
-                    def albDns = sh(
-                        script: 'cd terraform && terraform output -raw web_alb_dns',
-                        returnStdout: true
-                    ).trim()
-                    
-                    echo "Application deployed successfully!"
-                    echo "Access your application at: http://${albDns}"
-                    echo ""
-                    echo "Test the backend API at: http://${albDns}/api/products"
-                }
-            }
-        }
+
     }
-    
+
     post {
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed. Check logs for details.'
-        }
+        success { echo 'Pipeline completed successfully!' }
+        failure { echo 'Pipeline failed. Check logs for details.' }
     }
 }
