@@ -8,10 +8,6 @@ output "web_server_ips" {
 #   value = [aws_instance.backend.public_ip]
 # }
 
-output "db_server_ips" {
-  value = [aws_db_instance.postgres.private_ip]
-}
-
 output "backend_public_ips" {
   value = [aws_instance.backend[*].public_ip]
 }
