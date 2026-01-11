@@ -37,3 +37,13 @@ variable "ami_id" {
   description = "Optional explicit AMI ID to use"
   default     = ""
 }
+
+variable "packer_ami_name_pattern" {
+  description = "AMI name pattern if using a Packer-built AMI"
+  default     = ""
+}
+
+variable "packer_ami_owner" {
+  description = "AMI owner ID if using Packer-built AMI"
+  default     = ""
+}
