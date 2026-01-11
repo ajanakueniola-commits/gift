@@ -10,7 +10,7 @@ resource "aws_db_subnet_group" "Grace" {
 
 
 resource "aws_db_instance" "postgres" {
-  identifier             = "Grace-postgres"
+  identifier             = "production-postgres"
   engine                 = "postgres"
   engine_version         = "14.19"
   instance_class         = "db.t3.micro"
