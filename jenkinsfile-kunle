@@ -25,13 +25,13 @@ pipeline {
                 script {
                     dir('packer') {
                         echo 'Building Backend Server AMI...'
-                        sh 'packer init backend-server.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" backend-server.pkr.hcl'
+                        sh 'packer init base-server-ami.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" backend-server.pkr.hcl'
 
                         echo 'Building Web Server AMI...'
-                        sh 'packer init web-server.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" web-server.pkr.hcl'
+                        sh 'packer init base-server-ami.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" web-server.pkr.hcl'
 
                         echo 'Building Postgres Server AMI...'
-                        sh 'packer init postgres-server.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" postgres-server.pkr.hcl'
+                        sh 'packer init base-server-ami.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" postgres-server.pkr.hcl'
                     }
                 }
             }
