@@ -32,3 +32,8 @@ variable "db_username" {
 variable "db_password" {
   description = "Password for the database"
 }
+
+variable "ami_id" {
+  description = "Optional explicit AMI ID to use"
+  default     = ""
+}
