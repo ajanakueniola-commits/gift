@@ -58,6 +58,12 @@ pipeline {
                         sh '''
                             packer init web-server.pkr.hcl
                             packer build -var "aws_region=${AWS_REGION}" web-server.pkr.hcl
+
+                        echo 'Building Postgres Server AMI...'
+                        sh '''
+                            packer init postgres-server.pkr.hcl
+                            packer build -var "aws_region=${AWS_REGION}" postgres-server.pkr.hcl
+                        
                         '''
                     }
                 }
