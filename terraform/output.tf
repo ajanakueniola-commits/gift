@@ -21,8 +21,6 @@ output "rds_endpoint" {
 output "postgres_server_ips" {
   value = [aws_instance.postgres.public_ip]
 }
-output "postgres-server-ami_id" {
-  value = aws_instance.postgres.ami
-}
+
 
 
