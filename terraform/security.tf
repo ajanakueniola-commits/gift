@@ -30,7 +30,7 @@ resource "aws_security_group" "backend" {
     from_port       = 5000
     to_port         = 5000
     protocol        = "tcp"
-    security_groups = [aws_security_group.web.id]
+    security_groups = [aws_security_group.backend.id]
   }
 
   egress {
@@ -48,7 +48,7 @@ resource "aws_security_group" "db" {
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    security_groups = [aws_security_group.backend.id]
+    security_groups = [aws_security_group.db.id]
   }
 
     egress {
@@ -58,3 +58,16 @@ resource "aws_security_group" "db" {
         cidr_blocks = ["0.0.0.0/0"]
     }
 }
+
+# resource "aws_db_subnet_group" "grace" {
+#   name = "grace-db-subnet-group"
+
+#   subnet_ids = [
+#     aws_subnet.private_a.id,
+#     aws_subnet.private_b.id
+#   ]
+
+#   tags = {
+#     Name = "Grace DB subnet group"
+#   }
+# }
