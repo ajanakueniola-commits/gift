@@ -93,7 +93,8 @@ resource "aws_db_subnet_group" "grace" {
   name = "grace-db-subnet-group"
 
   subnet_ids = [
-    aws_subnet.private.id
+    aws_subnet.grace_private_subnet_a.id,
+    aws_subnet.grace_private_subnet_b.id
   ]
 
   tags = {
