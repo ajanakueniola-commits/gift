@@ -1,44 +1,71 @@
-# DB Subnet Group
-resource "aws_db_subnet_group" "main" {
-  name       = "main-db-subnet-group"
-  subnet_ids = [aws_subnet.private.id]
+# # DB Subnet Group
+# resource "aws_db_subnet_group" "Grace" {
+#   name       = "Grace-db-subnet-group"
+#   subnet_ids = [aws_subnet.private.id]
 
-  tags = {
-    Name = "Main DB subnet group"
-  }
-}
+#   tags = {
+#     Name = "Grace DB subnet group"
+#   }
+# }
 
+
+# resource "aws_db_instance" "postgres" {
+#   identifier             = "production-postgres"
+#   engine                 = "postgres"
+#   engine_version         = "14.19"
+#   instance_class         = "db.t3.micro"
+#   allocated_storage      = 20
+#   storage_encrypted      = false
+  
+#   db_name  = var.db_name
+#   username = var.db_username
+#   password = var.db_password
+  
+#   db_subnet_group_name   = aws_db_subnet_group.Grace.name
+#   vpc_security_group_ids = [aws_security_group.db.id]
+  
+#   backup_retention_period = 0 
+#   backup_window          = null
+#   maintenance_window     = "mon:04:00-mon:05:00"
+  
+#   multi_az               = false
+#   publicly_accessible    = false
+#   skip_final_snapshot    = true
+
+#   enabled_cloudwatch_logs_exports = []
+  
+#   performance_insights_enabled = false
+  
+#   deletion_protection = false
+
+#   tags = {
+#     Name        = "PostgreSQL"
+#   }
+# }
 
 resource "aws_db_instance" "postgres" {
-  identifier             = "production-postgres"
-  engine                 = "postgres"
-  engine_version         = "14.19"
-  instance_class         = "db.t3.micro"
-  allocated_storage      = 20
-  storage_encrypted      = false
-  
+  identifier = "production-postgres"
+
+  engine         = "postgres"
+  engine_version = "14.19"
+  instance_class = "db.t3.micro"
+
+  allocated_storage = 20
+  storage_encrypted = false
+
   db_name  = var.db_name
   username = var.db_username
   password = var.db_password
-  
-  db_subnet_group_name   = aws_db_subnet_group.main.name
-  vpc_security_group_ids = [aws_security_group.db.id]
-  
-  backup_retention_period = 0 
-  backup_window          = null
-  maintenance_window     = "mon:04:00-mon:05:00"
-  
-  multi_az               = false
-  publicly_accessible    = false
-  skip_final_snapshot    = true
 
-  enabled_cloudwatch_logs_exports = []
-  
-  performance_insights_enabled = false
-  
-  deletion_protection = false
+  db_subnet_group_name   = aws_db_subnet_group.grace.name
+  vpc_security_group_ids = [aws_security_group.db.id]
+
+  backup_retention_period = 0
+  skip_final_snapshot    = true
+  publicly_accessible    = false
+  multi_az               = false
 
   tags = {
-    Name        = "PostgreSQL"
+    Name = "PostgreSQL"
   }
 }

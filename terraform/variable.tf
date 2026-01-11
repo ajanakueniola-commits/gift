@@ -10,10 +10,6 @@ variable "backend-server-ami_id" {
   description = "AMI ID created by Packer"
 }
 
-variable "postgres-server-ami_id" {
-  description = "AMI ID created by Packer"
-}
-
 variable "instance_type" {
   default = "c7i-flex.large"
 }
@@ -24,6 +20,10 @@ variable "instance_type" {
 
 variable "db_name" {
   description = "Name of the database"
+}
+
+variable "base-server-ami_id" {
+  description = "Base server AMI ID created by Packer"
 }
 
 variable "db_username" {
@@ -47,3 +47,38 @@ variable "packer_ami_owner" {
   description = "AMI owner ID if using Packer-built AMI"
   default     = ""
 }
+
+# variable "aws_subnet.grace-private-sub.id" {
+#   description = "ID of private subnet"
+# }
+
+# variable "aws_subnet.private_b.id" {
+#   description = "ID of private subnet B"
+# }
+variable "private_subnets" {
+  description = "List of private subnet CIDRs"
+  type        = list(string)
+  default     = ["10.0.3.0/24", "10.0.4.0/24"]
+}
+
+variable "public_subnets" {
+  description = "List of public subnet CIDRs"
+  type        = list(string)
+  default     = ["10.0.1.0/24", "10.0.2.0/24"]
+}
+
+variable "private_subnets" {
+  description = "List of private subnet CIDRs"
+  type        = list(string)
+  default     = ["10.0.3.0/24", "10.0.4.0/24"]
+}
+
+variable "azs" {
+  description = "Availability zones"
+  type        = list(string)
+  default     = ["us-east-2a", "us-east-2b"]
+}
+
+variable "vpc_cidr" {
+  description = "CIDR block for the VPC"
+  default     = "10.0.0.0/16"

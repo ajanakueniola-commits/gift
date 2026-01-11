@@ -1,62 +1,10 @@
-# packer {
-#   required_plugins {
-#     amazon = {
-#       source  = "github.com/hashicorp/amazon"
-#       version = ">= 1.2.0"
-#     }
-#   }
-# }
-
-# variable "aws_region" {
-#   default = "us-east-2"
-# }
-
-# source "amazon-ebs" "backend-server" {
-#   region        = var.aws_region
-#   instance_type = "c7i-flex.large"
-#   ssh_username  = "ec2-user"
-
-#   ami_name      = "grace-backend-server-ami-{{timestamp}}"
-
-#   source_ami_filter {
-#     filters = {
-#       name                = "amzn2-ami-hvm-*-x86_64-gp2"
-#       root-device-type    = "ebs"
-#       virtualization-type = "hvm"
-#     }
-#     owners      = ["amazon"]
-#     most_recent = true
-#   }
-
-#   tags = {
-#     Name = "grace-backend-server-ami"
-#     Role = "app"
-#   }
-# }
-
-# build {
-#   sources = ["source.amazon-ebs.backend-server"]
-
-#   provisioner "shell" {
-#     inline = [
-#       "sudo yum update -y",
-#       "sudo yum install java-17-amazon-corretto -y",
-#       "sudo yum install git -y",
-#       "sudo useradd appuser",
-#       "sudo mkdir -p /opt/app",
-#       "sudo chown appuser:appuser /opt/app"
-#     ]
-#   }
-#   post-processor "manifest" {
-#     output = "manifest.json"
-#   }
-# }
-
 packer {
+  required_version = ">= 1.9.0"
+
   required_plugins {
     amazon = {
       source  = "github.com/hashicorp/amazon"
-      version = ">= 1.2.0"
+      version = ">= 1.2.8"
     }
   }
 }
@@ -69,31 +17,41 @@ source "amazon-ebs" "base" {
   region        = var.region
   instance_type = "c7i-flex.large"
   ssh_username  = "ec2-user"
-  ami_name      = "grace-base-ami-{{timestamp}}"
+
+  ami_name      = "grace-base-server-ami-{{timestamp}}"
 
   source_ami_filter {
     filters = {
-      name                = "amzn2-ami-hvm-*-x86_64-gp2"
-      root-device-type    = "ebs"
+      name                 = "amzn2-ami-hvm-*-x86_64-gp2"
+      root-device-type     = "ebs"
       virtualization-type = "hvm"
     }
     owners      = ["amazon"]
     most_recent = true
   }
+
+  tags = {
+    Name = "grace-base-server-ami"
+    Role = "base"
+  }
 }
 
 build {
-  name    = "base-ami-build"
+  name    = "grace-base-build"
   sources = ["source.amazon-ebs.base"]
 
   provisioner "shell" {
     inline = [
       "sudo yum update -y",
-      "sudo yum install python3 -y",
-      "sudo yum install git -y"
+      "sudo yum install -y python3 git",
+      "sudo amazon-linux-extras enable docker",
+      "sudo yum install -y docker",
+      "sudo systemctl enable docker",
+      "sudo systemctl start docker"
     ]
   }
 
+  # Terraform will read this
   post-processor "manifest" {
     output = "manifest.json"
   }
