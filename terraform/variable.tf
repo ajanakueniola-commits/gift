@@ -48,3 +48,10 @@ variable "packer_ami_owner" {
   default     = ""
 }
 
+variable "aws_subnet.private_a.id" {
+  description = "ID of private subnet A"
+}
+
+variable "aws_subnet.private_b.id" {
+  description = "ID of private subnet B"
+}
