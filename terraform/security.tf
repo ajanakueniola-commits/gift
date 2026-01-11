@@ -63,28 +63,6 @@ resource "aws_security_group" "db" {
   tags = { Name = "grace-sg" }
 }
 
-resource "aws_subnet" "public" {
-  count                   = 1
-  vpc_id                  = aws_vpc.grace.id
-  cidr_block              = var.public_subnets[count.index]
-  availability_zone       = var.azs[count.index]
-  map_public_ip_on_launch = true
-  tags = { Name = "grace-public-sub-${count.index}" }
-}
-
-resource "aws_subnet" "private" {
-  count             = 1
-  vpc_id            = aws_vpc.grace.id
-  cidr_block        = var.private_subnets[count.index]
-  availability_zone = var.azs[count.index]
-  tags = { Name = "grace-private-sub-${count.index}" }
-}
-
-
-
-
-
-
 # resource "aws_security_group" "backend" {
 #   vpc_id = aws_vpc.grace.id
 
