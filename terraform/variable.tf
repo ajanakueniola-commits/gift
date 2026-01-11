@@ -47,3 +47,4 @@ variable "packer_ami_owner" {
   description = "AMI owner ID if using Packer-built AMI"
   default     = ""
 }
+
