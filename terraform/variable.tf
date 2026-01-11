@@ -48,9 +48,9 @@ variable "packer_ami_owner" {
   default     = ""
 }
 
-# variable "aws_subnet.grace-suprivate.id" {
-#   description = "ID of private subnet"
-# }
+variable "aws_subnet.grace-suprivate.id" {
+  description = "ID of private subnet"
+}
 
 # variable "aws_subnet.private_b.id" {
 #   description = "ID of private subnet B"
