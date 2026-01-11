@@ -19,7 +19,7 @@ output "rds_endpoint" {
   value = aws_db_instance.postgres.endpoint
 }
 output "postgres_server_ips" {
-  value = [aws_instance.db.public_ip]
+  value = [aws_instance.postgres.public_ip]
 }
 
 
