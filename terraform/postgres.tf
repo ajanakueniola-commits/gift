@@ -1,7 +1,6 @@
 # DB Subnet Group
 resource "aws_db_subnet_group" "main" {
   name       = "main-db-subnet-group"
-  vpc_id            = aws_vpc.grace.id
   subnet_ids = [aws_subnet.private.id]
 
   tags = {
