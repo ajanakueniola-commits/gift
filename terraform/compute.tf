@@ -21,7 +21,7 @@ resource "aws_instance" "backend" {
 resource "aws_instance" "db" {
   ami           = var.postgres_ami
   instance_type = "c7i-flex.large"
-  subnet_id     = aws_subnet.grace-private-sub[0].id
+  subnet_id     = aws_subnet.private.id
   vpc_security_group_ids = [aws_security_group.db.id]
 
   tags = {
