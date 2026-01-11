@@ -78,3 +78,7 @@ variable "azs" {
   type        = list(string)
   default     = ["us-east-2a", "us-east-2b"]
 }
+
+variable "vpc_cidr" {
+  description = "CIDR block for the VPC"
+  default     = "10.0.0.0/16"
