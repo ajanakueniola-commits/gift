@@ -1,121 +1,278 @@
+// pipeline {
+//     agent any
+
+//     environment {
+//         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
+//         AWS_ACCESS_KEY_ID     = credentials('aws-access-key-id')
+//         AWS_REGION            = 'us-east-2'
+//     }
+
+//     parameters {
+//         choice(name: 'ACTION', choices: ['plan', 'apply', 'destroy'], description: 'Terraform action to perform')
+//         booleanParam(name: 'BUILD_AMIS', defaultValue: false, description: 'Build new AMIs with Packer')
+//     }
+
+//     stages {
+//         stage('Checkout') {
+//             steps {
+//                 checkout scm
+//             }
+//         }
+
+//         stage('Build AMIs') {
+//             when { expression { params.BUILD_AMIS } }
+//             steps {
+//                 script {
+//                     dir('packer') {
+//                         echo 'Building Backend Server AMI...'
+//                         sh 'packer init base-server-ami.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" base-server-ami.pkr.hcl'
+
+//                         echo 'Building Web Server AMI...'
+//                         sh 'packer init base-server-ami.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" base-server-ami.pkr.hcl'
+
+//                         echo 'Building Postgres Server AMI...'
+//                         sh 'packer init base-server-ami.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" base-server-ami.pkr.hcl'
+//                     }
+//                 }
+//             }
+//         }
+
+//         stage('Terraform Init') {
+//             steps {
+//                 dir('terraform') {
+//                     sh 'terraform init -reconfigure'
+//                 }
+//             }
+//         }
+
+//         stage('Terraform Validate') {
+//             steps {
+//                 dir('terraform') {
+//                     sh 'terraform validate'
+//                 }
+//             }
+//         }
+
+//         stage('Terraform Plan') {
+//             when { expression { params.ACTION == 'plan' || params.ACTION == 'apply' } }
+//             steps {
+//                 dir('terraform') {
+//                     sh 'terraform plan -var-file="terraform.tfvars"'
+//                 }
+//             }
+//         }
+
+//         stage('Terraform Apply') {
+//             when { expression { params.ACTION == 'apply' } }
+//             steps {
+//                 dir('terraform') {
+//                     sh 'terraform apply -var-file="terraform.tfvars" -auto-approve'
+//                 }
+//             }
+//         }
+
+//         stage('Retrieve Outputs') {
+//             when { expression { params.ACTION == 'apply' } }
+//             steps {
+//                 script {
+//                     dir('terraform') {
+//                         env.DB_ENDPOINT = sh(script: 'terraform output -raw rds_endpoint', returnStdout: true).trim()
+//                         env.WEB_IPS     = sh(script: 'terraform output -json web_server_ips', returnStdout: true).trim()
+//                         env.Postgres_IPS     = sh(script: 'terraform output -json postgres_server_ips', returnStdout: true).trim()
+//                         echo "Database Endpoint: ${env.DB_ENDPOINT}"
+//                         echo "Web Server IPs: ${env.WEB_IPS}"
+//                         echo "Postgres Server IPs: ${env.Postgres_IPS}"
+//                     }
+//                 }
+//             }
+//         }
+
+//         stage('Deploy Nginx + Frontend + Reverse Proxy') {
+//             when { expression { params.ACTION == 'apply' } }
+//             steps {
+//                 script {
+//                     // Get first backend FastAPI IP
+//                     def backendIp = sh(
+//                         script: "cd terraform && terraform output -json backend_public_ips | jq -r '.[0]'",
+//                         returnStdout: true
+//                     ).trim()
+//                     echo "Backend FastAPI IP: ${backendIp}"
+
+//                     sshagent(credentials: ['AWS_SSH_KEY']) {
+//                         sh """
+//                         set -e
+//                         for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
+//                           echo "Configuring Nginx on \$ip"
+//                           ssh -o StrictHostKeyChecking=no ec2-user@\${ip} '
+//                             sudo yum install -y nginx git
+//                             sudo systemctl enable nginx
+//                             sudo systemctl start nginx
+
+//                             rm -rf /tmp/fruits
+//                             git clone https://github.com/techbleat/fruits-veg_market.git /tmp/fruits
+
+//                             sudo rm -rf /usr/share/nginx/html/*
+//                             sudo cp -r /tmp/fruits/* /usr/share/nginx/html/
+
+//                             # Configure reverse proxy safely
+//                             sudo bash -c "cat > /etc/nginx/nginx.conf <<EOL
+// server {
+//     listen 80;
+//     server_name enny4life.duckdns.org;
+
+//     root /usr/share/nginx/html;
+//     index index.html;
+
+//     location / {
+//         try_files \$uri \$uri/ /index.html;
+//     }
+
+//     location /api/ {
+//         proxy_pass http://${backendIp}:8000/;
+//         proxy_set_header Host \$host;
+//         proxy_set_header X-Real-IP \$remote_addr;
+//     }
+// }
+// EOF"
+
+//                             sudo nginx -t
+//                             sudo systemctl restart nginx
+//                           '
+//                         done
+//                         """
+//                     }
+//                 }
+//             }
+//         }
+
+//         stage('Terraform Destroy') {
+//             when { expression { params.ACTION == 'destroy' } }
+//             steps {
+//                 dir('terraform') {
+//                     input message: 'Are you sure you want to destroy?', ok: 'Destroy'
+//                     sh 'terraform destroy -var-file="terraform.tfvars" -auto-approve'
+//                 }
+//             }
+//         }
+
+//     }
+
+//     post {
+//         success { echo 'Pipeline completed successfully!' }
+//         failure { echo 'Pipeline failed. Check logs for details.' }
+//     }
+// }
+
 pipeline {
-    agent any
+  agent any
 
-    environment {
-        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
-        AWS_ACCESS_KEY_ID     = credentials('aws-access-key-id')
-        AWS_REGION            = 'us-east-2'
+  environment {
+    AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
+    AWS_ACCESS_KEY_ID     = credentials('aws-access-key-id')
+    AWS_REGION           = 'us-east-2'
+  }
+
+  parameters {
+    choice(name: 'ACTION', choices: ['plan', 'apply', 'destroy'], description: 'Terraform action')
+    booleanParam(name: 'BUILD_AMIS', defaultValue: false, description: 'Build base AMI with Packer')
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
     }
 
-    parameters {
-        choice(name: 'ACTION', choices: ['plan', 'apply', 'destroy'], description: 'Terraform action to perform')
-        booleanParam(name: 'BUILD_AMIS', defaultValue: false, description: 'Build new AMIs with Packer')
+    stage('Build Base AMI') {
+      when { expression { params.BUILD_AMIS } }
+      steps {
+        dir('packer') {
+          sh '''
+            packer init .
+            packer build base-ami.pkr.hcl
+          '''
+        }
+      }
     }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
+    stage('Terraform Init') {
+      steps {
+        dir('terraform') {
+          sh 'terraform init -reconfigure'
         }
+      }
+    }
 
-        stage('Build AMIs') {
-            when { expression { params.BUILD_AMIS } }
-            steps {
-                script {
-                    dir('packer') {
-                        echo 'Building Backend Server AMI...'
-                        sh 'packer init base-server-ami.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" base-server-ami.pkr.hcl'
-
-                        echo 'Building Web Server AMI...'
-                        sh 'packer init base-server-ami.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" base-server-ami.pkr.hcl'
-
-                        echo 'Building Postgres Server AMI...'
-                        sh 'packer init base-server-ami.pkr.hcl && packer build -var "aws_region=${AWS_REGION}" base-server-ami.pkr.hcl'
-                    }
-                }
-            }
+    stage('Terraform Validate') {
+      steps {
+        dir('terraform') {
+          sh 'terraform validate'
         }
+      }
+    }
 
-        stage('Terraform Init') {
-            steps {
-                dir('terraform') {
-                    sh 'terraform init -reconfigure'
-                }
-            }
+    stage('Terraform Plan') {
+      when { expression { params.ACTION == 'plan' || params.ACTION == 'apply' } }
+      steps {
+        dir('terraform') {
+          sh 'terraform plan'
         }
+      }
+    }
 
-        stage('Terraform Validate') {
-            steps {
-                dir('terraform') {
-                    sh 'terraform validate'
-                }
-            }
+    stage('Terraform Apply') {
+      when { expression { params.ACTION == 'apply' } }
+      steps {
+        dir('terraform') {
+          sh 'terraform apply -auto-approve'
         }
+      }
+    }
 
-        stage('Terraform Plan') {
-            when { expression { params.ACTION == 'plan' || params.ACTION == 'apply' } }
-            steps {
-                dir('terraform') {
-                    sh 'terraform plan -var-file="terraform.tfvars"'
-                }
-            }
+    stage('Get IPs') {
+      when { expression { params.ACTION == 'apply' } }
+      steps {
+        script {
+          dir('terraform') {
+            env.BACKEND_IP = sh(
+              script: "terraform output -json backend_public_ips | jq -r '.[0]'",
+              returnStdout: true
+            ).trim()
+
+            env.WEB_IPS = sh(
+              script: "terraform output -json web_server_ips",
+              returnStdout: true
+            ).trim()
+          }
+
+          echo "Backend IP: ${env.BACKEND_IP}"
+          echo "Web IPs: ${env.WEB_IPS}"
         }
+      }
+    }
 
-        stage('Terraform Apply') {
-            when { expression { params.ACTION == 'apply' } }
-            steps {
-                dir('terraform') {
-                    sh 'terraform apply -var-file="terraform.tfvars" -auto-approve'
-                }
-            }
-        }
+    stage('Deploy Nginx + Reverse Proxy') {
+      when { expression { params.ACTION == 'apply' } }
+      steps {
+        sshagent(credentials: ['AWS_SSH_KEY']) {
+          sh """
+          for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
+            echo "Configuring Nginx on \$ip"
 
-        stage('Retrieve Outputs') {
-            when { expression { params.ACTION == 'apply' } }
-            steps {
-                script {
-                    dir('terraform') {
-                        env.DB_ENDPOINT = sh(script: 'terraform output -raw rds_endpoint', returnStdout: true).trim()
-                        env.WEB_IPS     = sh(script: 'terraform output -json web_server_ips', returnStdout: true).trim()
-                        env.Postgres_IPS     = sh(script: 'terraform output -json postgres_server_ips', returnStdout: true).trim()
-                        echo "Database Endpoint: ${env.DB_ENDPOINT}"
-                        echo "Web Server IPs: ${env.WEB_IPS}"
-                        echo "Postgres Server IPs: ${env.Postgres_IPS}"
-                    }
-                }
-            }
-        }
+            ssh -o StrictHostKeyChecking=no ec2-user@\${ip} << EOF
+              sudo yum install -y nginx git
+              sudo systemctl enable nginx
+              sudo systemctl start nginx
 
-        stage('Deploy Nginx + Frontend + Reverse Proxy') {
-            when { expression { params.ACTION == 'apply' } }
-            steps {
-                script {
-                    // Get first backend FastAPI IP
-                    def backendIp = sh(
-                        script: "cd terraform && terraform output -json backend_public_ips | jq -r '.[0]'",
-                        returnStdout: true
-                    ).trim()
-                    echo "Backend FastAPI IP: ${backendIp}"
+              rm -rf /tmp/fruits
+              git clone https://github.com/techbleat/fruits-veg_market.git /tmp/fruits
 
-                    sshagent(credentials: ['AWS_SSH_KEY']) {
-                        sh """
-                        set -e
-                        for ip in \$(echo '${env.WEB_IPS}' | jq -r '.[]'); do
-                          echo "Configuring Nginx on \$ip"
-                          ssh -o StrictHostKeyChecking=no ec2-user@\${ip} '
-                            sudo yum install -y nginx git
-                            sudo systemctl enable nginx
-                            sudo systemctl start nginx
+              sudo rm -rf /usr/share/nginx/html/*
+              sudo cp -r /tmp/fruits/* /usr/share/nginx/html/
 
-                            rm -rf /tmp/fruits
-                            git clone https://github.com/techbleat/fruits-veg_market.git /tmp/fruits
-
-                            sudo rm -rf /usr/share/nginx/html/*
-                            sudo cp -r /tmp/fruits/* /usr/share/nginx/html/
-
-                            # Configure reverse proxy safely
-                            sudo bash -c "cat > /etc/nginx/nginx.conf <<EOL
+              sudo tee /etc/nginx/conf.d/reverse.conf > /dev/null << EOL
 server {
     listen 80;
     server_name enny4life.duckdns.org;
@@ -124,41 +281,40 @@ server {
     index index.html;
 
     location / {
-        try_files \$uri \$uri/ /index.html;
+        try_files \\$uri \\$uri/ /index.html;
     }
 
     location /api/ {
-        proxy_pass http://${backendIp}:8000/;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_pass http://${env.BACKEND_IP}:8000/;
+        proxy_set_header Host \\$host;
+        proxy_set_header X-Real-IP \\$remote_addr;
     }
 }
-EOF"
+EOL
 
-                            sudo nginx -t
-                            sudo systemctl restart nginx
-                          '
-                        done
-                        """
-                    }
-                }
-            }
+              sudo nginx -t
+              sudo systemctl restart nginx
+EOF
+          done
+          """
         }
-
-        stage('Terraform Destroy') {
-            when { expression { params.ACTION == 'destroy' } }
-            steps {
-                dir('terraform') {
-                    input message: 'Are you sure you want to destroy?', ok: 'Destroy'
-                    sh 'terraform destroy -var-file="terraform.tfvars" -auto-approve'
-                }
-            }
-        }
-
+      }
     }
 
-    post {
-        success { echo 'Pipeline completed successfully!' }
-        failure { echo 'Pipeline failed. Check logs for details.' }
+    stage('Terraform Destroy') {
+      when { expression { params.ACTION == 'destroy' } }
+      steps {
+        dir('terraform') {
+          input message: 'Are you sure you want to destroy?', ok: 'Destroy'
+          sh 'terraform destroy -auto-approve'
+        }
+      }
     }
+
+  }
+
+  post {
+    success { echo 'Deployment successful 🚀' }
+    failure { echo 'Pipeline failed ❌' }
+  }
 }
