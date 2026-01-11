@@ -1,13 +1,29 @@
 ####################
 # AMI Lookup
 ####################
-data "local_file" "base_manifest" {
-  filename = "${path.module}/../packer/manifest.json"
-}
+# data "local_file" "base_manifest" {
+#   filename = "${path.module}/../packer/manifest.json"
+# }
 
+# locals {
+#   base_ami_raw = jsondecode(data.local_file.base_manifest.content).builds[0].artifact_id
+#   base_ami_id  = split(":", local.base_ami_raw)[1]
+# }
+
+####################
+# AMI Lookup
+####################
+data "aws_ami" "packer_or_amazon" {
+  most_recent = true
+  owners      = var.packer_ami_owner != "" ? [var.packer_ami_owner] : ["amazon"]
+
+  filter {
+    name   = "name"
+    values = var.packer_ami_name_pattern != "" ? [var.packer_ami_name_pattern] : ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+}
 locals {
-  base_ami_raw = jsondecode(data.local_file.base_manifest.content).builds[0].artifact_id
-  base_ami_id  = split(":", local.base_ami_raw)[1]
+  base_ami_id = var.ami_id != "" ? var.ami_id : data.aws_ami.packer_or_amazon.id
 }
 
 resource "aws_instance" "web" {
