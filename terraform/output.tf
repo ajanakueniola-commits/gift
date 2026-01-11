@@ -9,7 +9,7 @@ output "web_server_ips" {
 # }
 
 output "db_server_ips" {
-  value = [aws_instance.db.private_ip]
+  value = [aws_instance.postgres.private_ip]
 }
 
 output "backend_public_ips" {
