@@ -45,23 +45,23 @@ resource "aws_instance" "backend" {
   }
 }
 
-resource "aws_instance" "postgres" {
-  ami           = local.base_ami_id
-  instance_type = var.instance_type
-  subnet_id     = aws_subnet.private.id
+# resource "aws_instance" "postgres" {
+#   ami           = local.base_ami_id
+#   instance_type = var.instance_type
+#   subnet_id     = aws_subnet.private.id
 
-user_data = <<-EOF
-    #!/bin/bash
-    yum update -y
-    amazon-linux-extras install -y postgresql13
-    systemctl enable postgresql
-    systemctl start postgresql
+# user_data = <<-EOF
+#     #!/bin/bash
+#     yum update -y
+#     amazon-linux-extras install -y postgresql13
+#     systemctl enable postgresql
+#     systemctl start postgresql
 
-  EOF
-  tags = { 
-    Name = "grace-postgres-db"
-  }
-}
+#   EOF
+#   tags = { 
+#     Name = "grace-postgres-db"
+#   }
+# }
 
 # resource "aws_instance" "db" {
 #   ami           = var.postgres_ami
