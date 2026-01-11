@@ -1,16 +1,16 @@
 # DB Subnet Group
-resource "aws_db_subnet_group" "main" {
-  name       = "main-db-subnet-group"
+resource "aws_db_subnet_group" "Grace" {
+  name       = "Grace-db-subnet-group"
   subnet_ids = [aws_subnet.private.id]
 
   tags = {
-    Name = "Main DB subnet group"
+    Name = "Grace DB subnet group"
   }
 }
 
 
 resource "aws_db_instance" "postgres" {
-  identifier             = "production-postgres"
+  identifier             = "Grace-postgres"
   engine                 = "postgres"
   engine_version         = "14.19"
   instance_class         = "db.t3.micro"
@@ -21,7 +21,7 @@ resource "aws_db_instance" "postgres" {
   username = var.db_username
   password = var.db_password
   
-  db_subnet_group_name   = aws_db_subnet_group.main.name
+  db_subnet_group_name   = aws_db_subnet_group.Grace.name
   vpc_security_group_ids = [aws_security_group.db.id]
   
   backup_retention_period = 0 
