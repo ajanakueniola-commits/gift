@@ -320,7 +320,7 @@ EOF
   }
 
   post {
-    success { echo 'Deployment successful 🚀' }
-    failure { echo 'Pipeline failed ❌' }
+    success { echo 'pipeline successful ' }
+    failure { echo 'Pipeline not successful' }
   }
 }
