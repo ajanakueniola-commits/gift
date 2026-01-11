@@ -10,7 +10,6 @@ locals {
   base_ami_id  = split(":", local.base_ami_raw)[1]
 }
 
-
 resource "aws_instance" "web" {
   ami           = local.base_ami_id
   instance_type = var.instance_type
@@ -24,8 +23,7 @@ resource "aws_instance" "backend" {
   ami           = local.base_ami_id
   instance_type = var.instance_type
   subnet_id     = aws_subnet.private.id
-  vpc_security_group_ids = [aws_security_group.app.id]
-
+  
   tags = {
     Name = "grace-backend-server"
   }
@@ -35,7 +33,6 @@ resource "aws_instance" "postgres" {
   ami           = local.base_ami_id
   instance_type = var.instance_type
   subnet_id     = aws_subnet.private.id
-  vpc_security_group_ids = [aws_security_group.postgres.id]
 
 user_data = <<-EOF
     #!/bin/bash
