@@ -59,15 +59,15 @@ resource "aws_security_group" "db" {
   }
 }
 
-# resource "aws_db_subnet_group" "grace" {
-#   name = "grace-db-subnet-group"
+resource "aws_db_subnet_group" "grace" {
+  name = "grace-db-subnet-group"
 
-#   subnet_ids = [
-#     aws_subnet.private_a.id,
-#     aws_subnet.private_b.id
-#   ]
+  subnet_ids = [
+    aws_subnet.private_a.id,
+    aws_subnet.private_b.id
+  ]
 
-#   tags = {
-#     Name = "Grace DB subnet group"
-#   }
-# }
+  tags = {
+    Name = "Grace DB subnet group"
+  }
+}

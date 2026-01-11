@@ -247,10 +247,16 @@ pipeline {
             ).trim()
           }
 
-          echo "Backend IP: ${env.BACKEND_IP}"
-          echo "Web IPs: ${env.WEB_IPS}"
-        }
+          env.POSTGRES_ENDPOINT = sh(
+        script: 'terraform output -raw postgres_endpoint',
+    returnStdout: true
+).trim()
+
+     echo "Postgres Endpoint: ${env.POSTGRES_ENDPOINT}"
+     echo "Backend IP: ${env.BACKEND_IP}"
+     echo "Web IPs: ${env.WEB_IPS}"
       }
+    } 
     }
 
     stage('Deploy Nginx + Reverse Proxy') {

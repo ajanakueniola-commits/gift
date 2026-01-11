@@ -16,9 +16,10 @@ output "backend_public_ips" {
   value = [aws_instance.backend[*].public_ip]
 }
 
-output "postgres_server_ips" {
-  value = [aws_instance.postgres.public_ip]
+output "postgres_endpoint" {
+  value = aws_db_instance.postgres.address
 }
+
 
 
 
