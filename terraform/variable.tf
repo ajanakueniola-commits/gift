@@ -12,3 +12,7 @@ variable "backend-server-ami_id" {
 variable "instance_type" {
   default = "c7i-flex.large"
 }
+
+variable "postgres_ami" {
+  description = "Postgres AMI ID created by Packer"
+}

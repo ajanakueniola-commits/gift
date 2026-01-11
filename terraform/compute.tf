@@ -13,14 +13,18 @@ resource "aws_instance" "backend" {
   subnet_id     = aws_subnet.private.id
   vpc_security_group_ids = [aws_security_group.backend.id]
 
-  tags = { Name = "grace-backend-server" }
+  tags = { 
+    Name = "grace-backend-server"
+  }
 }
 
 resource "aws_instance" "db" {
-  ami           = var.backend-server-ami_id
-  instance_type = var.instance_type
-  subnet_id     = aws_subnet.private.id
+  ami           = var.postgres_ami
+  instance_type = "c7i-flex.large"
+  subnet_id     = aws_subnet.grace-private-sub[0].id
   vpc_security_group_ids = [aws_security_group.db.id]
 
-  tags = { Name = "grace-postgres" }
+  tags = {
+    Name = "grace-postgres-db"
+  }
 }
