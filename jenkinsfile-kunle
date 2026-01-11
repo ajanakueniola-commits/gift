@@ -78,8 +78,10 @@ pipeline {
                     dir('terraform') {
                         env.DB_ENDPOINT = sh(script: 'terraform output -raw rds_endpoint', returnStdout: true).trim()
                         env.WEB_IPS     = sh(script: 'terraform output -json web_server_ips', returnStdout: true).trim()
+                        env.Postgres_IPS     = sh(script: 'terraform output -json postgres_server_ips', returnStdout: true).trim()
                         echo "Database Endpoint: ${env.DB_ENDPOINT}"
                         echo "Web Server IPs: ${env.WEB_IPS}"
+                        echo "Postgres Server IPs: ${env.Postgres_IPS}"
                     }
                 }
             }
