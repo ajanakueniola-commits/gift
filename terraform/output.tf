@@ -17,9 +17,3 @@ output "backend_public_ips" {
 }
 
 
-
-
-# Remove or comment out ALB outputs if no ALB is created
-# output "alb_dns" {
-#   value = aws_lb.web.dns_name
-# }

@@ -10,29 +10,12 @@ pipeline {
     parameters {
         choice(name: 'ACTION', choices: ['plan', 'apply', 'destroy'], description: 'Terraform action to perform')
         booleanParam(name: 'BUILD_AMIS', defaultValue: false, description: 'Build new AMIs with Packer')
-        string(name: 'ADMIN_IP', defaultValue: '', description: 'Admin IP for SSH access (leave empty to use Jenkins server IP)')
     }
 
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
-            }
-        }
-
-        stage('Set Admin IP') {
-            steps {
-                script {
-                    def adminIp = params.ADMIN_IP
-                    if (adminIp == '') {
-                        adminIp = sh(script: 'curl -s http://checkip.amazonaws.com', returnStdout: true).trim()
-                        echo "Using Jenkins server IP: ${adminIp}"
-                    }
-
-                    dir('terraform') {
-                        sh "sed -i 's|admin_ip\\s*=.*|admin_ip = \"${adminIp}/32\"|' terraform.tfvars"
-                    }
-                }
             }
         }
 
@@ -130,7 +113,7 @@ pipeline {
                             sudo cp -r /tmp/fruits/* /usr/share/nginx/html/
 
                             # Configure reverse proxy safely
-                            sudo bash -c "cat > /etc/nginx/conf.d/default.conf <<EOL
+                            sudo bash -c "cat > /etc/nginx/nginx.conf <<EOL
 server {
     listen 80;
     server_name enny4life.duckdns.org;
@@ -148,7 +131,7 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
     }
 }
-EOL"
+EOF"
 
                             sudo nginx -t
                             sudo systemctl restart nginx
@@ -170,17 +153,6 @@ EOL"
             }
         }
 
-        stage('Verify Deployment') {
-            when { expression { params.ACTION == 'apply' } }
-            steps {
-                script {
-                    def webDns = sh(script: 'cd terraform && terraform output -raw web_alb_dns', returnStdout: true).trim()
-                    echo "Application deployed successfully!"
-                    echo "Access your application at: http://${webDns}"
-                    echo "Test the backend API at: http://${webDns}/api/products"
-                }
-            }
-        }
     }
 
     post {
